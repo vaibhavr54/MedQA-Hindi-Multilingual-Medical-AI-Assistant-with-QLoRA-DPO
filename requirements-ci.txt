@@ -1,0 +1,25 @@
+# ── CI-only requirements ───────────────────────────────────────────────────────
+# Lightweight install for GitHub Actions — no CUDA, no bitsandbytes
+# GPU-dependent code is mocked in tests so these are sufficient
+
+# API
+fastapi==0.112.0
+uvicorn[standard]==0.30.5
+pydantic==2.8.2
+python-multipart==0.0.9
+httpx==0.27.0          # required by FastAPI TestClient
+
+# Evaluation metrics (CPU-only)
+rouge-score==0.1.2
+bert-score==0.3.13
+torch==2.1.2           # CPU-only torch — much smaller install
+transformers==4.44.2
+numpy==1.26.4
+
+# Test runner
+pytest==8.3.2
+pytest-asyncio==0.23.8
+
+# Utilities
+pyyaml==6.0.2
+datasets==2.20.0

@@ -70,12 +70,20 @@ class MedQAInference:
         self._model: Optional[AutoModelForCausalLM] = None
         self._tokenizer: Optional[AutoTokenizer] = None
 
-        # Canonical paths for each variant
-        _outputs = Path(__file__).parent.parent / "training" / "outputs"
+        # # Canonical paths for each variant
+        # _outputs = Path(__file__).parent.parent / "training" / "outputs"
+        # self._model_paths: Dict[str, str] = {
+        #     "base":  BASE_MODEL_ID,
+        #     "qlora": str(_outputs / "qlora_rtx2050_full" / "final_merged"),
+        #     "dpo":   str(_outputs / "dpo" / "final_merged"),
+        # }
+        import os
+
+        _outputs = Path(__file__).parent.parent / "outputs"
         self._model_paths: Dict[str, str] = {
             "base":  BASE_MODEL_ID,
-            "qlora": str(_outputs / "qlora_rtx2050_full" / "final_merged"),
-            "dpo":   str(_outputs / "dpo" / "final_merged"),
+            "qlora": os.environ.get("QLORA_MODEL_PATH", str(_outputs / "qlora_rtx2050_full" / "final_merged")),
+            "dpo":   os.environ.get("DPO_MODEL_PATH",   str(_outputs / "dpo" / "final_merged")),
         }
 
     # ── Internals ──────────────────────────────────────────────────────────────
@@ -87,10 +95,18 @@ class MedQAInference:
         total = torch.cuda.get_device_properties(0).total_memory / 1e9
         return f"{used:.2f}GB / {total:.2f}GB"
 
+    def _emit_log(self, message: str):
+        try:
+            from api.main import _push_log
+            _push_log(message)
+        except Exception:
+            pass
+
     def _unload_current(self):
         """Free GPU memory occupied by the currently-loaded model."""
         if self._model is not None:
             print(f"   🗑️  Unloading {self._loaded_type} | VRAM before: {self._vram_str()}")
+            self._emit_log(f"🗑️  Unloading {self._loaded_type} | VRAM before: {self._vram_str()}")
             del self._model
             del self._tokenizer
             self._model       = None
@@ -103,6 +119,7 @@ class MedQAInference:
         self._unload_current()
 
         print(f"📥 Loading {model_type} from {path} ...")
+        self._emit_log(f"📥 Loading {model_type} from {path} ...")
         try:
             model = AutoModelForCausalLM.from_pretrained(
                 path,
@@ -123,10 +140,12 @@ class MedQAInference:
             self._loaded_type = model_type
 
             print(f"   ✅ {model_type} loaded | VRAM: {self._vram_str()}")
+            self._emit_log(f"✅ {model_type} loaded | VRAM: {self._vram_str()}")
             return True
 
         except Exception as exc:
             print(f"   ❌ Failed to load {model_type}: {exc}")
+            self._emit_log(f"❌ Failed to load {model_type}: {exc}")
             self._model       = None
             self._tokenizer   = None
             self._loaded_type = None
@@ -151,6 +170,7 @@ class MedQAInference:
         # Non-base models must exist on disk
         if model_type != "base" and not Path(path).exists():
             print(f"   ⚠️  {model_type} not found at {path} — skipping")
+            self._emit_log(f"⚠️  {model_type} not found at {path} — skipping")
             return False
 
         return self._load(model_type, path)

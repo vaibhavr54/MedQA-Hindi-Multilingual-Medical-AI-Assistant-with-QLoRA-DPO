@@ -15,11 +15,14 @@ Fixes applied:
 
 import json
 import torch
+import asyncio
 from pathlib import Path
 from datetime import datetime
 from contextlib import asynccontextmanager
+from typing import List
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
+from fastapi.responses import StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
@@ -38,6 +41,16 @@ EVAL_RESULTS = ROOT_DIR / "evaluation" / "results" / "evaluation_results.json"
 
 # ── Global engine ──────────────────────────────────────────────────────────────
 engine = None
+_log_buffer: List[str] = []
+_LOG_BUFFER_MAX = 200
+
+
+def _push_log(message: str):
+    if not message:
+        return
+    _log_buffer.append(message)
+    if len(_log_buffer) > _LOG_BUFFER_MAX:
+        del _log_buffer[: len(_log_buffer) - _LOG_BUFFER_MAX]
 
 
 # ── Lifespan ───────────────────────────────────────────────────────────────────
@@ -105,13 +118,16 @@ async def root():
 async def ask(request: AskRequest):
     """Ask a medical question; answered by the requested model variant."""
     try:
-        answer, confidence, lang, processing_time = engine.generate(
+        _push_log(f"📥 Request /api/ask | model={request.model.value} | lang={request.language.value}")
+        answer, confidence, lang, processing_time = await asyncio.to_thread(
+            engine.generate,
             question=request.question,
             model_type=request.model.value,
             max_tokens=request.max_tokens,
             temperature=request.temperature,
             language=request.language.value
         )
+        _push_log(f"✅ Completed /api/ask | model={request.model.value} | {round(processing_time, 2)}ms")
         return AskResponse(
             answer=answer,
             model_used=request.model.value,
@@ -120,6 +136,7 @@ async def ask(request: AskRequest):
             processing_time_ms=round(processing_time, 2)
         )
     except Exception as e:
+        _push_log(f"❌ /api/ask error: {e}")
         raise HTTPException(status_code=500, detail=f"Generation error: {e}")
 
 
@@ -127,14 +144,17 @@ async def ask(request: AskRequest):
 async def compare(request: CompareRequest):
     """Run the same question through multiple models and return all answers."""
     try:
+        _push_log(f"📥 Request /api/compare | models={[m.value for m in request.models]} | lang={request.language.value}")
         model_types = [m.value for m in request.models]
-        results, total_time = engine.compare(
+        results, total_time = await asyncio.to_thread(
+            engine.compare,
             question=request.question,
             models=model_types,
             max_tokens=request.max_tokens,
             temperature=request.temperature,
             language=request.language.value
         )
+        _push_log(f"✅ Completed /api/compare | {round(total_time, 2)}ms")
         comparisons = [
             ModelComparison(
                 model=r["model"],
@@ -150,6 +170,7 @@ async def compare(request: CompareRequest):
             total_time_ms=round(total_time, 2)
         )
     except Exception as e:
+        _push_log(f"❌ /api/compare error: {e}")
         raise HTTPException(status_code=500, detail=f"Comparison error: {e}")
 
 
@@ -244,6 +265,45 @@ async def health():
         gpu_available=gpu_available,
         gpu_memory_gb=round(gpu_memory, 2) if gpu_memory else None
     )
+
+
+@app.get("/api/logs")
+async def logs(request: Request):
+    """Stream server log events to the frontend (Server-Sent Events)."""
+    async def event_stream():
+        last_index = max(0, len(_log_buffer) - 50)
+        while True:
+            if await request.is_disconnected():
+                break
+            if last_index < len(_log_buffer):
+                batch = _log_buffer[last_index:]
+                last_index = len(_log_buffer)
+                for line in batch:
+                    yield f"data: {line}\n\n"
+            await asyncio.sleep(0.3)
+
+    return StreamingResponse(
+        event_stream(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no"
+        }
+    )
+
+
+@app.get("/api/logs/latest")
+async def logs_latest():
+    """Return the latest log lines as JSON (fallback for SSE)."""
+    return {"lines": _log_buffer[-100:]}
+
+
+@app.post("/api/logs/clear")
+async def logs_clear():
+    """Clear the log buffer."""
+    _log_buffer.clear()
+    return {"status": "cleared"}
 
 
 # ── Static frontend ────────────────────────────────────────────────────────────

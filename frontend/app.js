@@ -21,7 +21,10 @@ const API_BASE_URL = (() => {
 const API_ENDPOINTS = {
     ask: `${API_BASE_URL}/api/ask`,
     compare: `${API_BASE_URL}/api/compare`,
-    metrics: `${API_BASE_URL}/api/metrics`
+    metrics: `${API_BASE_URL}/api/metrics`,
+    logs: `${API_BASE_URL}/api/logs`,
+    logsLatest: `${API_BASE_URL}/api/logs/latest`,
+    logsClear: `${API_BASE_URL}/api/logs/clear`
 };
 
 // DOM Elements
@@ -198,6 +201,7 @@ function setupAskButton() {
             return;
         }
 
+        await clearLogs();
         showLoading(true);
 
         try {
@@ -346,6 +350,85 @@ function showLoading(show) {
     }
 }
 
+// Live Logs
+let logsEventSource = null;
+let logsPoller = null;
+const logsToggle = document.getElementById('logs-toggle');
+const logsDrawer = document.getElementById('logs-drawer');
+const logsClose = document.getElementById('logs-close');
+const logsBody = document.getElementById('logs-body');
+
+function appendLogLine(line) {
+    if (!logsBody) return;
+
+    if (logsBody.querySelector('.logs-empty')) {
+        logsBody.innerHTML = '';
+    }
+
+    if (logsBody.dataset.lastLine === line) {
+        return;
+    }
+
+    logsBody.dataset.lastLine = line;
+
+    const span = document.createElement('span');
+    span.className = 'logs-line';
+    span.textContent = line;
+    logsBody.appendChild(span);
+    logsBody.scrollTop = logsBody.scrollHeight;
+}
+
+function openLogs() {
+    if (logsDrawer) {
+        logsDrawer.classList.remove('hidden');
+    }
+    if (!logsEventSource) {
+        logsEventSource = new EventSource(API_ENDPOINTS.logs);
+        logsEventSource.onmessage = (event) => appendLogLine(event.data);
+        logsEventSource.onerror = () => {
+            appendLogLine('⚠️  Live stream unavailable. Falling back to polling...');
+            logsEventSource.close();
+            logsEventSource = null;
+            startLogsPolling();
+        };
+    }
+}
+
+function closeLogs() {
+    if (logsDrawer) {
+        logsDrawer.classList.add('hidden');
+    }
+}
+
+async function clearLogs() {
+    if (logsBody) {
+        logsBody.innerHTML = '<p class="logs-empty">No logs yet. Run a query to see live events.</p>';
+        logsBody.dataset.lastLine = '';
+    }
+    try {
+        await fetch(API_ENDPOINTS.logsClear, { method: 'POST' });
+    } catch (error) {
+        console.error('Failed to clear logs:', error);
+    }
+}
+
+async function fetchLatestLogs() {
+    try {
+        const response = await fetch(API_ENDPOINTS.logsLatest);
+        if (!response.ok) throw new Error('Failed to fetch logs');
+        const data = await response.json();
+        (data.lines || []).forEach(appendLogLine);
+    } catch (error) {
+        console.error('Logs polling error:', error);
+    }
+}
+
+function startLogsPolling() {
+    if (logsPoller) return;
+    fetchLatestLogs();
+    logsPoller = setInterval(fetchLatestLogs, 1500);
+}
+
 // Load Metrics
 async function loadMetrics() {
     try {
@@ -431,3 +514,11 @@ function renderMetricsTable(metrics) {
 
 // Initialize on DOM ready
 document.addEventListener('DOMContentLoaded', init);
+document.addEventListener('DOMContentLoaded', () => {
+    if (logsToggle) {
+        logsToggle.addEventListener('click', openLogs);
+    }
+    if (logsClose) {
+        logsClose.addEventListener('click', closeLogs);
+    }
+});

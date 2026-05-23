@@ -245,6 +245,20 @@
         <p>Processing your request...</p>
     </div>
 
+    <!-- Live Logs Drawer -->
+    <button id="logs-toggle" class="logs-toggle" type="button">
+        Live Logs
+    </button>
+    <div id="logs-drawer" class="logs-drawer hidden" aria-live="polite">
+        <div class="logs-header">
+            <span>Server Logs</span>
+            <button id="logs-close" class="logs-close" type="button" aria-label="Close logs">✕</button>
+        </div>
+        <div class="logs-body" id="logs-body">
+            <p class="logs-empty">No logs yet. Run a query to see live events.</p>
+        </div>
+    </div>
+
     <script src="app.js"></script>
     <script src="charts.js"></script>
 </body>
