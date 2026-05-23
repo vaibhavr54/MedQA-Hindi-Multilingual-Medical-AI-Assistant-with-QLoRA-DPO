@@ -13,8 +13,8 @@ echo "========================================"
 QLORA_MODEL_ID="${QLORA_MODEL_ID:-your-username/medqa-hindi-qlora}"
 DPO_MODEL_ID="${DPO_MODEL_ID:-your-username/medqa-hindi-dpo}"
 
-QLORA_PATH="./models/qlora_merged"
-DPO_PATH="./models/dpo_merged"
+QLORA_MODEL_ID="${QLORA_MODEL_ID:-vaibhavrakshe161/medqa-hindi-qlora}"
+DPO_MODEL_ID="${DPO_MODEL_ID:-vaibhavrakshe161/medqa-hindi-dpo}"
 
 # ── Download models from HF Hub ────────────────────────────────────────────────
 echo ""
