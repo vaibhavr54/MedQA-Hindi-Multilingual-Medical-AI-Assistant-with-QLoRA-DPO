@@ -1,0 +1,74 @@
+model:
+  training_model: "D:\\B.TECH\\Projects\\medqa-hindi\\training\\outputs\\qlora_rtx2050_full\\final_merged"
+  base_model: "Qwen/Qwen2.5-0.5B-Instruct"
+
+training:
+  output_dir: "./outputs/dpo"
+
+  num_train_epochs: 1
+
+  per_device_train_batch_size: 1
+  per_device_eval_batch_size: 1
+  gradient_accumulation_steps: 4
+
+  learning_rate: 5.0e-5
+  warmup_ratio: 0.1
+  lr_scheduler_type: "cosine"
+
+  # RTX2050-safe optimizer
+  optim: "paged_adamw_8bit"
+
+  weight_decay: 0.001
+  max_grad_norm: 0.3
+
+  logging_steps: 10
+
+  save_strategy: "steps"
+  save_steps: 500
+  save_total_limit: 3
+
+  # Skip eval during training
+  eval_strategy: "no"
+  load_best_model_at_end: false
+
+  # DPO sequence settings
+  max_seq_length: 256
+  max_prompt_length: 128
+  max_completion_length: 128
+
+  fp16: true
+  bf16: false
+
+  gradient_checkpointing: true
+
+  report_to: "none"
+
+  # DPO-specific
+  beta: 0.1
+  loss_type: "sigmoid"
+
+qlora:
+  r: 8
+  lora_alpha: 16
+  lora_dropout: 0.05
+
+  # Keep same successful modules from QLoRA run
+  target_modules:
+    - "q_proj"
+    - "k_proj"
+    - "v_proj"
+    - "o_proj"
+
+  bias: "none"
+  task_type: "CAUSAL_LM"
+
+quantization:
+  load_in_4bit: true
+  bnb_4bit_compute_dtype: "float16"
+  bnb_4bit_use_double_quant: true
+  bnb_4bit_quant_type: "nf4"
+
+data:
+  train_file: "D:/B.TECH/Projects/medqa-hindi/data/dpo/train.jsonl"
+  validation_file: "D:/B.TECH/Projects/medqa-hindi/data/dpo/validation.jsonl"
+  max_samples: 15000

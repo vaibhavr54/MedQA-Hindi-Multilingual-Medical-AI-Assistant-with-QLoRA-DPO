@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MedQA-Hindi | AI Medical Assistant</title>
+    <link rel="stylesheet" href="styles.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Noto+Sans+Devanagari:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <!-- Header -->
+    <header class="header">
+        <div class="header-content">
+            <div class="logo">
+                <span class="logo-icon">🏥</span>
+                <h1>MedQA-Hindi</h1>
+            </div>
+            <nav class="nav">
+                <button class="nav-btn active" data-module="demo">Live Demo</button>
+                <button class="nav-btn" data-module="metrics">Metrics</button>
+                <button class="nav-btn" data-module="about">About</button>
+            </nav>
+            <div class="lang-toggle">
+                <button class="lang-btn active" data-lang="auto">Auto</button>
+                <button class="lang-btn" data-lang="hi">हिंदी</button>
+                <button class="lang-btn" data-lang="en">English</button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="main">
+        <!-- Live Demo Module -->
+        <section id="demo-module" class="module active">
+            <div class="module-header">
+                <h2>🩺 Live Demo</h2>
+                <p>Ask medical questions in Hindi or English. Compare model responses side-by-side.</p>
+            </div>
+
+            <div class="demo-container">
+                <!-- Input Section -->
+                <div class="input-section">
+                    <div class="input-group">
+                        <label for="question-input">Your Medical Question</label>
+                        <textarea 
+                            id="question-input" 
+                            placeholder="e.g., मुझे सिरदर्द और बुखार है, क्या करूं? (I have headache and fever, what should I do?)"
+                            rows="3"
+                        ></textarea>
+                        <div class="input-meta">
+                            <span class="char-count">0/2000</span>
+                            <span class="lang-detect">Detected: <span id="detected-lang">—</span></span>
+                        </div>
+                    </div>
+
+                    <div class="controls">
+                        <div class="model-select">
+                            <label>Mode:</label>
+                            <button class="mode-btn active" data-mode="single">Single Model</button>
+                            <button class="mode-btn" data-mode="compare">Compare Models</button>
+                        </div>
+
+                        <div class="model-select" id="single-model-select">
+                            <label>Model:</label>
+                            <select id="model-select">
+                                <option value="dpo">DPO Aligned (Best)</option>
+                                <option value="qlora">QLoRA Fine-tuned</option>
+                                <option value="base">Base Qwen2.5</option>
+                            </select>
+                        </div>
+
+                        <div class="model-select hidden" id="compare-model-select">
+                            <label>Compare:</label>
+                            <label class="checkbox-label"><input type="checkbox" value="base" checked> Base</label>
+                            <label class="checkbox-label"><input type="checkbox" value="qlora"> QLoRA</label>
+                            <label class="checkbox-label"><input type="checkbox" value="dpo" checked> DPO</label>
+                        </div>
+
+                        <button id="ask-btn" class="primary-btn">
+                            <span class="btn-icon">🔍</span>
+                            Ask MedQA
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Response Section -->
+                <div class="response-section" id="response-section">
+                    <!-- Single Response -->
+                    <div id="single-response" class="response-card">
+                        <div class="response-header">
+                            <span class="model-badge" id="single-model-badge">DPO Aligned</span>
+                            <span class="confidence-badge" id="single-confidence">Confidence: —</span>
+                        </div>
+                        <div class="response-body" id="single-answer">
+                            <div class="placeholder">Enter a question and click "Ask MedQA" to see the response...</div>
+                        </div>
+                        <div class="response-footer">
+                            <span class="disclaimer">⚠️ Educational use only. Not medical advice.</span>
+                            <span class="response-time" id="single-time">—</span>
+                        </div>
+                    </div>
+
+                    <!-- Comparison Response -->
+                    <div id="compare-response" class="comparison-container hidden">
+                        <div class="comparison-card" data-model="base">
+                            <div class="comparison-header">
+                                <span class="model-badge base">Base Model</span>
+                                <span class="confidence-badge" id="base-confidence">—</span>
+                            </div>
+                            <div class="comparison-body" id="base-answer">
+                                <div class="placeholder">Response will appear here...</div>
+                            </div>
+                            <div class="comparison-footer">
+                                <span class="response-time" id="base-time">—</span>
+                            </div>
+                        </div>
+
+                        <div class="comparison-card" data-model="qlora">
+                            <div class="comparison-header">
+                                <span class="model-badge qlora">QLoRA</span>
+                                <span class="confidence-badge" id="qlora-confidence">—</span>
+                            </div>
+                            <div class="comparison-body" id="qlora-answer">
+                                <div class="placeholder">Response will appear here...</div>
+                            </div>
+                            <div class="comparison-footer">
+                                <span class="response-time" id="qlora-time">—</span>
+                            </div>
+                        </div>
+
+                        <div class="comparison-card best" data-model="dpo">
+                            <div class="comparison-header">
+                                <span class="model-badge dpo">DPO Aligned</span>
+                                <span class="confidence-badge" id="dpo-confidence">—</span>
+                            </div>
+                            <div class="comparison-body" id="dpo-answer">
+                                <div class="placeholder">Response will appear here...</div>
+                            </div>
+                            <div class="comparison-footer">
+                                <span class="response-time" id="dpo-time">—</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Metrics Module -->
+        <section id="metrics-module" class="module">
+            <div class="module-header">
+                <h2>📊 Training Metrics</h2>
+                <p>Evaluation results comparing Base, QLoRA, and DPO model performance.</p>
+            </div>
+
+            <div class="metrics-container">
+                <!-- Metrics Table -->
+                <div class="metrics-table-wrapper">
+                    <table class="metrics-table" id="metrics-table">
+                        <thead>
+                            <tr>
+                                <th>Metric</th>
+                                <th>Base Model</th>
+                                <th>QLoRA</th>
+                                <th>DPO</th>
+                                <th>Improvement</th>
+                            </tr>
+                        </thead>
+                        <tbody id="metrics-tbody">
+                            <tr>
+                                <td colspan="5" class="loading">Loading metrics...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Charts -->
+                <div class="charts-grid">
+                    <div class="chart-card">
+                        <h3>Score Comparison</h3>
+                        <canvas id="score-chart"></canvas>
+                    </div>
+                    <div class="chart-card">
+                        <h3>Improvement %</h3>
+                        <canvas id="improvement-chart"></canvas>
+                    </div>
+                </div>
+
+                <!-- Sample Predictions -->
+                <div class="samples-section">
+                    <h3>📝 Sample Predictions</h3>
+                    <div class="samples-grid" id="samples-grid">
+                        <div class="sample-card">
+                            <p class="sample-loading">Run evaluation to see sample predictions...</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- About Module -->
+        <section id="about-module" class="module">
+            <div class="module-header">
+                <h2>ℹ️ About MedQA-Hindi</h2>
+            </div>
+
+            <div class="about-content">
+                <div class="about-card">
+                    <h3>🏥 Project Overview</h3>
+                    <p>MedQA-Hindi is an AI-powered medical question-answering system fine-tuned for Hindi and English medical queries. It addresses the limitation of general-purpose LLMs in medical domains through parameter-efficient fine-tuning.</p>
+                </div>
+
+                <div class="about-card">
+                    <h3>⚙️ Technology Stack</h3>
+                    <ul>
+                        <li><strong>Base Model:</strong> Qwen/Qwen2.5-1.5B-Instruct</li>
+                        <li><strong>Fine-tuning:</strong> QLoRA (4-bit NF4 + LoRA adapters)</li>
+                        <li><strong>Alignment:</strong> DPO (Direct Preference Optimization)</li>
+                        <li><strong>Translation:</strong> IndicTrans2 (English→Hindi)</li>
+                        <li><strong>Backend:</strong> FastAPI + Uvicorn</li>
+                        <li><strong>Frontend:</strong> Vanilla JS + Chart.js</li>
+                    </ul>
+                </div>
+
+                <div class="about-card">
+                    <h3>📚 Datasets</h3>
+                    <ul>
+                        <li><strong>MedQuAD:</strong> 47K English medical QA pairs</li>
+                        <li><strong>MedMCQA-Indic:</strong> Hindi medical MCQs</li>
+                        <li><strong>HiMed:</strong> Hindi medical conversations</li>
+                    </ul>
+                </div>
+
+                <div class="about-card warning">
+                    <h3>⚠️ Medical Disclaimer</h3>
+                    <p>This system is for <strong>educational purposes only</strong>. It is not a substitute for professional medical advice, diagnosis, or treatment. Always seek the advice of your physician or other qualified health provider with any questions you may have regarding a medical condition.</p>
+                    <p><strong>यह जानकारी केवल शैक्षिक उद्देश्यों के लिए है।</strong> यह पेशेवर चिकित्सा सलाह का विकल्प नहीं है। किसी भी स्वास्थ्य संबंधी निर्णय से पहले अपने चिकित्सक से परामर्श करें।</p>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <p>MedQA-Hindi © 2026 | Educational Medical AI Project</p>
+        <p class="disclaimer-footer">Not a substitute for professional medical advice</p>
+    </footer>
+
+    <!-- Loading Overlay -->
+    <div id="loading-overlay" class="loading-overlay hidden">
+        <div class="spinner"></div>
+        <p>Processing your request...</p>
+    </div>
+
+    <script src="app.js"></script>
+    <script src="charts.js"></script>
+</body>
+</html>

@@ -1,0 +1,1 @@
+"""MedQA-Hindi data module."""
