@@ -1,3 +1,13 @@
+---
+title: MedQA Hindi
+emoji: 🏥
+colorFrom: blue
+colorTo: green
+sdk: docker
+pinned: false
+---
+
+
 ![CI](https://github.com/vaibhavr54/MedQA-Hindi-Multilingual-Medical-AI-Assistant-with-QLoRA-DPO/actions/workflows/ci.yml/badge.svg)
 
 BERTScore | 0.71 | 0.82 | 0.87 | ↑22% |
