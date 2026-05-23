@@ -17,6 +17,7 @@ Fixes applied:
 
 import time
 import torch
+import re
 from pathlib import Path
 from typing import Optional, Tuple, List, Dict
 from transformers import AutoModelForCausalLM, AutoTokenizer, BitsAndBytesConfig
@@ -30,24 +31,15 @@ DEFAULT_TEMPERATURE = 0.7
 BASE_MODEL_ID = "Qwen/Qwen2.5-0.5B-Instruct"
 
 SYSTEM_PROMPT = (
-    "You are MedQA-Hindi, an AI medical assistant trained on medical Q&A datasets.\n"
+    "You are MedQA-Hindi, a medical QA model comparison system.\n"
     "Provide accurate, helpful medical information in Hindi or English "
     "based on the user's question language.\n"
-    "Always include a medical disclaimer that this is for educational purposes only "
-    "and not a substitute for professional medical advice.\n\n"
-    "Disclaimer: यह जानकारी केवल शैक्षिक उद्देश्यों के लिए है। "
-    "यह पेशेवर चिकित्सा सलाह का विकल्प नहीं है। "
-    "किसी भी स्वास्थ्य संबंधी निर्णय से पहले अपने चिकित्सक से परामर्श करें।"
+    "Do not include medical disclaimers in the response; disclaimers are shown elsewhere.\n"
+    "CRITICAL: Respond ONLY in the target language. Do NOT mix languages."
 )
 
-DISCLAIMER_HI = (
-    "\n\n⚠️ अस्वीकरण: यह जानकारी केवल शैक्षिक उद्देश्यों के लिए है। "
-    "यह पेशेवर चिकित्सा सलाह का विकल्प नहीं है।"
-)
-DISCLAIMER_EN = (
-    "\n\n⚠️ Disclaimer: This information is for educational purposes only. "
-    "It is not a substitute for professional medical advice."
-)
+DISCLAIMER_HI = ""
+DISCLAIMER_EN = ""
 
 
 # ── Quantization config ────────────────────────────────────────────────────────
@@ -79,11 +71,11 @@ class MedQAInference:
         self._tokenizer: Optional[AutoTokenizer] = None
 
         # Canonical paths for each variant
-        _outputs = Path(__file__).parent.parent / "outputs"
+        _outputs = Path(__file__).parent.parent / "training" / "outputs"
         self._model_paths: Dict[str, str] = {
             "base":  BASE_MODEL_ID,
-            "qlora": str(_outputs / "qlora" / "final_merged"),
-            "dpo":   str(_outputs / "dpo"   / "final_merged"),
+            "qlora": str(_outputs / "qlora_rtx2050_full" / "final_merged"),
+            "dpo":   str(_outputs / "dpo" / "final_merged"),
         }
 
     # ── Internals ──────────────────────────────────────────────────────────────
@@ -266,9 +258,15 @@ class MedQAInference:
         detected_lang = self.detect_language(question) if language == "auto" else language
 
         # Build prompt
+        lang_hint = "Hindi" if detected_lang == "hi" else "English"
+        system_prompt = (
+            SYSTEM_PROMPT
+            + f"\n\nTarget language: {lang_hint}."
+            + f"\nRules: 1) Use only {lang_hint}. 2) If you cannot answer, still reply only in {lang_hint}."
+        )
         messages = [
-            {"role": "system", "content": SYSTEM_PROMPT},
-            {"role": "user",   "content": question}
+            {"role": "system", "content": system_prompt},
+            {"role": "user",   "content": f"Question ({lang_hint}): {question}"}
         ]
         prompt = tokenizer.apply_chat_template(
             messages,
@@ -298,9 +296,9 @@ class MedQAInference:
             skip_special_tokens=True
         ).strip()
 
-        # Append disclaimer if the model forgot
-        if "disclaimer" not in response.lower() and "शैक्षिक" not in response:
-            response += DISCLAIMER_HI if detected_lang == "hi" else DISCLAIMER_EN
+        response = self._strip_prompt_echo(response)
+
+        # Disclaimers are intentionally omitted in responses
 
         confidence      = self.compute_confidence(prompt, response)
         processing_time = (time.time() - start) * 1000
@@ -312,7 +310,8 @@ class MedQAInference:
         question: str,
         models: Optional[List[str]] = None,
         max_tokens: int = DEFAULT_MAX_TOKENS,
-        temperature: float = DEFAULT_TEMPERATURE
+        temperature: float = DEFAULT_TEMPERATURE,
+        language: str = "auto"
     ) -> Tuple[List[dict], float]:
         """
         Run the same question through multiple models sequentially.
@@ -336,7 +335,8 @@ class MedQAInference:
                     question=question,
                     model_type=model_type,
                     max_tokens=max_tokens,
-                    temperature=temperature
+                    temperature=temperature,
+                    language=language
                 )
                 results.append({
                     "model":           model_type,
@@ -354,6 +354,39 @@ class MedQAInference:
 
         total_time = (time.time() - start) * 1000
         return results, total_time
+
+    def _strip_prompt_echo(self, text: str) -> str:
+        """Remove training prompt tails or assistant boilerplate if present."""
+        if not text:
+            return text
+
+        markers = [
+            "medqa-hindi",
+            "thank you for using our service",
+            "happy to assist",
+            "best wishes",
+            "i am ready to assist",
+            "i am here to assist",
+            "if you need help with anything else",
+            "if you have any other query",
+            "if you have any other queries",
+            "please consult your healthcare provider",
+            "always follow their instructions",
+        ]
+
+        lowered = text.lower()
+        cut_index = None
+        for marker in markers:
+            idx = lowered.find(marker)
+            if idx != -1:
+                cut_index = idx if cut_index is None else min(cut_index, idx)
+
+        cleaned = text[:cut_index].strip() if cut_index is not None else text.strip()
+
+        # Remove lingering prompt-like lines
+        cleaned = re.sub(r"\n\s*(thank you|best wishes|medqa-hindi).*$", "", cleaned, flags=re.IGNORECASE).strip()
+
+        return cleaned if cleaned else text.strip()
 
     def get_loaded_models(self) -> Dict[str, bool]:
         """

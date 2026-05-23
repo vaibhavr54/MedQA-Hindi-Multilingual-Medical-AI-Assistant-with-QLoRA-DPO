@@ -3,9 +3,26 @@
  * Handles module switching, API calls, comparison logic, and UI interactions.
  */
 
-const API_BASE_URL = window.location.origin.includes('localhost') 
-    ? 'http://localhost:8000' 
-    : window.location.origin;
+const API_BASE_URL = (() => {
+    const meta = document.querySelector('meta[name="api-base-url"]');
+    if (meta && meta.content) return meta.content.trim();
+
+    if (window.location.protocol === 'file:') {
+        return 'http://localhost:8000';
+    }
+
+    if (window.location.origin.includes('localhost')) {
+        return 'http://localhost:8000';
+    }
+
+    return window.location.origin;
+})();
+
+const API_ENDPOINTS = {
+    ask: `${API_BASE_URL}/api/ask`,
+    compare: `${API_BASE_URL}/api/compare`,
+    metrics: `${API_BASE_URL}/api/metrics`
+};
 
 // DOM Elements
 const modules = document.querySelectorAll('.module');
@@ -23,6 +40,7 @@ const singleModelSelect = document.getElementById('single-model-select');
 const compareModelSelect = document.getElementById('compare-model-select');
 const singleResponse = document.getElementById('single-response');
 const compareResponse = document.getElementById('compare-response');
+const modelSelect = document.getElementById('model-select');
 
 // State
 let currentLang = 'auto';
@@ -35,7 +53,9 @@ function init() {
     setupModeSwitching();
     setupInputHandling();
     setupAskButton();
+    setupModelBadgeSync();
     loadMetrics();
+    applyLanguageSelection();
 }
 
 // Navigation
@@ -67,8 +87,34 @@ function setupLanguageToggle() {
             langButtons.forEach(b => b.classList.remove('active'));
             btn.classList.add('active');
             currentLang = btn.dataset.lang;
+            applyLanguageSelection();
         });
     });
+}
+
+function applyLanguageSelection() {
+    if (currentLang === 'hi') {
+        questionInput.setAttribute('lang', 'hi');
+        questionInput.setAttribute('dir', 'ltr');
+        questionInput.placeholder = 'उदाहरण: मुझे सिरदर्द और बुखार है, क्या करूं?';
+        detectedLangSpan.textContent = 'Hindi (हिंदी)';
+        detectedLangSpan.style.color = 'var(--accent-secondary)';
+        return;
+    }
+
+    if (currentLang === 'en') {
+        questionInput.setAttribute('lang', 'en');
+        questionInput.setAttribute('dir', 'ltr');
+        questionInput.placeholder = 'e.g., I have headache and fever, what should I do?';
+        detectedLangSpan.textContent = 'English';
+        detectedLangSpan.style.color = 'var(--accent-primary)';
+        return;
+    }
+
+    questionInput.removeAttribute('lang');
+    questionInput.setAttribute('dir', 'ltr');
+    questionInput.placeholder = 'e.g., मुझे सिरदर्द और बुखार है, क्या करूं? (I have headache and fever, what should I do?)';
+    detectLanguage(questionInput.value);
 }
 
 // Mode Switching (Single vs Compare)
@@ -89,8 +135,16 @@ function setupModeSwitching() {
                 compareModelSelect.classList.remove('hidden');
                 singleResponse.classList.add('hidden');
                 compareResponse.classList.remove('hidden');
+                setCompareDefaults();
             }
         });
+    });
+}
+
+function setCompareDefaults() {
+    const checkboxes = compareModelSelect.querySelectorAll('input[type="checkbox"]');
+    checkboxes.forEach(cb => {
+        cb.checked = true;
     });
 }
 
@@ -112,8 +166,12 @@ function setupInputHandling() {
 }
 
 function detectLanguage(text) {
+    if (currentLang !== 'auto') {
+        return;
+    }
+
     if (!text.trim()) {
-        detectedLangSpan.textContent = '—';
+        detectedLangSpan.textContent = 'Auto';
         return;
     }
 
@@ -159,16 +217,16 @@ function setupAskButton() {
 
 // Single Model Request
 async function askSingle(question) {
-    const model = document.getElementById('model-select').value;
+    const model = modelSelect.value;
 
-    const response = await fetch(`${API_BASE_URL}/api/ask`, {
+    const response = await fetch(API_ENDPOINTS.ask, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
             question: question,
             model: model,
             language: currentLang,
-            max_tokens: 512,
+            max_tokens: 256,
             temperature: 0.7
         })
     });
@@ -180,12 +238,28 @@ async function askSingle(question) {
     const data = await response.json();
 
     // Update UI
-    document.getElementById('single-model-badge').textContent = 
-        model === 'dpo' ? 'DPO Aligned' : 
-        model === 'qlora' ? 'QLoRA Fine-tuned' : 'Base Model';
+    document.getElementById('single-model-badge').textContent = getModelLabel(model);
     document.getElementById('single-confidence').textContent = `Confidence: ${(data.confidence * 100).toFixed(1)}%`;
     document.getElementById('single-answer').innerHTML = formatAnswer(data.answer);
     document.getElementById('single-time').textContent = `${data.processing_time_ms.toFixed(0)}ms`;
+}
+
+function setupModelBadgeSync() {
+    const badge = document.getElementById('single-model-badge');
+    if (!modelSelect || !badge) return;
+
+    const sync = () => {
+        badge.textContent = getModelLabel(modelSelect.value);
+    };
+
+    modelSelect.addEventListener('change', sync);
+    sync();
+}
+
+function getModelLabel(model) {
+    if (model === 'dpo') return 'DPO Aligned';
+    if (model === 'qlora') return 'QLoRA Fine-tuned';
+    return 'Base Qwen2.5';
 }
 
 // Compare Models Request
@@ -198,13 +272,14 @@ async function askCompare(question) {
         return;
     }
 
-    const response = await fetch(`${API_BASE_URL}/api/compare`, {
+    const response = await fetch(API_ENDPOINTS.compare, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
             question: question,
             models: models,
-            max_tokens: 512,
+            language: currentLang,
+            max_tokens: 256,
             temperature: 0.7
         })
     });
@@ -215,15 +290,29 @@ async function askCompare(question) {
 
     const data = await response.json();
 
+    const comparisons = data.comparisons || [];
+    const best = comparisons.reduce((acc, item) => {
+        if (!acc || item.confidence > acc.confidence) return item;
+        return acc;
+    }, null);
+
+    document.querySelectorAll('.comparison-card').forEach(card => {
+        card.classList.remove('best');
+    });
+
     // Update comparison cards
-    data.comparisons.forEach(comp => {
+    comparisons.forEach(comp => {
         const answerEl = document.getElementById(`${comp.model}-answer`);
         const confidenceEl = document.getElementById(`${comp.model}-confidence`);
         const timeEl = document.getElementById(`${comp.model}-time`);
+        const cardEl = document.querySelector(`.comparison-card[data-model="${comp.model}"]`);
 
         if (answerEl) answerEl.innerHTML = formatAnswer(comp.answer);
         if (confidenceEl) confidenceEl.textContent = `Confidence: ${(comp.confidence * 100).toFixed(1)}%`;
         if (timeEl) timeEl.textContent = `${comp.response_time_ms.toFixed(0)}ms`;
+        if (cardEl && best && comp.model === best.model) {
+            cardEl.classList.add('best');
+        }
     });
 }
 
@@ -240,11 +329,10 @@ function formatAnswer(text) {
     // Convert newlines to <br>
     formatted = formatted.replace(/\n/g, '<br>');
 
-    // Highlight disclaimer
-    formatted = formatted.replace(
-        /(Disclaimer:|अस्वीकरण:)(.*?)(?=<br>|$)/gi,
-        '<span style="color: var(--warning); font-weight: 500;">$1$2</span>'
-    );
+    // Remove inline disclaimers (footer already covers this)
+    formatted = formatted
+        .replace(/\s*⚠️?\s*Disclaimer:.*$/gim, '')
+        .replace(/\s*⚠️?\s*अस्वीकरण:.*$/gim, '');
 
     return formatted;
 }
@@ -261,12 +349,13 @@ function showLoading(show) {
 // Load Metrics
 async function loadMetrics() {
     try {
-        const response = await fetch(`${API_BASE_URL}/api/metrics`);
+        const response = await fetch(API_ENDPOINTS.metrics);
         if (!response.ok) throw new Error('Failed to load metrics');
 
         const data = await response.json();
         renderMetricsTable(data.metrics);
         renderCharts(data.metrics);
+        renderSamplePredictions(data.sample_predictions);
 
     } catch (error) {
         console.error('Error loading metrics:', error);
@@ -278,7 +367,53 @@ async function loadMetrics() {
         ];
         renderMetricsTable(defaultMetrics);
         renderCharts(defaultMetrics);
+        renderSamplePredictions(null);
     }
+}
+
+function renderSamplePredictions(samplePredictions) {
+    const grid = document.getElementById('samples-grid');
+    if (!grid) return;
+
+    if (!samplePredictions || samplePredictions.length === 0) {
+        grid.innerHTML = `
+            <div class="sample-card">
+                <p class="sample-loading">Run evaluation to see sample predictions...</p>
+            </div>
+        `;
+        return;
+    }
+
+    grid.innerHTML = samplePredictions.map(sample => {
+        const modelLabel = sample.model || sample.model_key || 'Model';
+        const predictions = (sample.predictions || []).slice(0, 5);
+        const references = (sample.references || []).slice(0, 5);
+
+        const rows = predictions.map((pred, idx) => {
+            const ref = references[idx] || '';
+            return `
+                <div class="sample-row">
+                    <p class="sample-question">Prediction ${idx + 1}</p>
+                    <p class="sample-answer">${escapeHtml(pred)}</p>
+                    ${ref ? `<p class="sample-reference">Reference: ${escapeHtml(ref)}</p>` : ''}
+                </div>
+            `;
+        }).join('');
+
+        return `
+            <div class="sample-card">
+                <p class="sample-model">${escapeHtml(modelLabel)}</p>
+                ${rows || '<p class="sample-loading">No sample predictions available.</p>'}
+            </div>
+        `;
+    }).join('');
+}
+
+function escapeHtml(value) {
+    return String(value)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;');
 }
 
 function renderMetricsTable(metrics) {

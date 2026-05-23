@@ -3,21 +3,22 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MedQA-Hindi | AI Medical Assistant</title>
+    <meta name="api-base-url" content="">
+    <title>MedQA-Hindi | Model Comparison Lab</title>
     <link rel="stylesheet" href="styles.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Noto+Sans+Devanagari:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@500;600;700&family=Spline+Sans:wght@400;500;600;700&family=Noto+Sans+Devanagari:wght@400;500;600;700&display=swap" rel="stylesheet">
 </head>
 <body>
     <!-- Header -->
     <header class="header">
         <div class="header-content">
             <div class="logo">
-                <span class="logo-icon">🏥</span>
+                <span class="logo-icon" aria-hidden="true">+</span>
                 <h1>MedQA-Hindi</h1>
             </div>
             <nav class="nav">
-                <button class="nav-btn active" data-module="demo">Live Demo</button>
+                <button class="nav-btn active" data-module="demo">Model Lab</button>
                 <button class="nav-btn" data-module="metrics">Metrics</button>
                 <button class="nav-btn" data-module="about">About</button>
             </nav>
@@ -34,8 +35,8 @@
         <!-- Live Demo Module -->
         <section id="demo-module" class="module active">
             <div class="module-header">
-                <h2>🩺 Live Demo</h2>
-                <p>Ask medical questions in Hindi or English. Compare model responses side-by-side.</p>
+                <h2>Model Comparison Lab</h2>
+                <p>Compare base, QLoRA, and DPO variants to demonstrate fine-tuning and alignment gains.</p>
             </div>
 
             <div class="demo-container">
@@ -50,7 +51,7 @@
                         ></textarea>
                         <div class="input-meta">
                             <span class="char-count">0/2000</span>
-                            <span class="lang-detect">Detected: <span id="detected-lang">—</span></span>
+                            <span class="lang-detect">Language: <span id="detected-lang">Auto</span></span>
                         </div>
                     </div>
 
@@ -64,7 +65,7 @@
                         <div class="model-select" id="single-model-select">
                             <label>Model:</label>
                             <select id="model-select">
-                                <option value="dpo">DPO Aligned (Best)</option>
+                                <option value="dpo">DPO Aligned</option>
                                 <option value="qlora">QLoRA Fine-tuned</option>
                                 <option value="base">Base Qwen2.5</option>
                             </select>
@@ -73,12 +74,11 @@
                         <div class="model-select hidden" id="compare-model-select">
                             <label>Compare:</label>
                             <label class="checkbox-label"><input type="checkbox" value="base" checked> Base</label>
-                            <label class="checkbox-label"><input type="checkbox" value="qlora"> QLoRA</label>
+                            <label class="checkbox-label"><input type="checkbox" value="qlora" checked> QLoRA</label>
                             <label class="checkbox-label"><input type="checkbox" value="dpo" checked> DPO</label>
                         </div>
 
                         <button id="ask-btn" class="primary-btn">
-                            <span class="btn-icon">🔍</span>
                             Ask MedQA
                         </button>
                     </div>
@@ -96,7 +96,6 @@
                             <div class="placeholder">Enter a question and click "Ask MedQA" to see the response...</div>
                         </div>
                         <div class="response-footer">
-                            <span class="disclaimer">⚠️ Educational use only. Not medical advice.</span>
                             <span class="response-time" id="single-time">—</span>
                         </div>
                     </div>
@@ -129,7 +128,7 @@
                             </div>
                         </div>
 
-                        <div class="comparison-card best" data-model="dpo">
+                        <div class="comparison-card" data-model="dpo">
                             <div class="comparison-header">
                                 <span class="model-badge dpo">DPO Aligned</span>
                                 <span class="confidence-badge" id="dpo-confidence">—</span>
@@ -149,7 +148,7 @@
         <!-- Metrics Module -->
         <section id="metrics-module" class="module">
             <div class="module-header">
-                <h2>📊 Training Metrics</h2>
+                <h2>Training Metrics</h2>
                 <p>Evaluation results comparing Base, QLoRA, and DPO model performance.</p>
             </div>
 
@@ -188,7 +187,7 @@
 
                 <!-- Sample Predictions -->
                 <div class="samples-section">
-                    <h3>📝 Sample Predictions</h3>
+                    <h3>Sample Predictions</h3>
                     <div class="samples-grid" id="samples-grid">
                         <div class="sample-card">
                             <p class="sample-loading">Run evaluation to see sample predictions...</p>
@@ -201,19 +200,19 @@
         <!-- About Module -->
         <section id="about-module" class="module">
             <div class="module-header">
-                <h2>ℹ️ About MedQA-Hindi</h2>
+                <h2>About MedQA-Hindi</h2>
             </div>
 
             <div class="about-content">
                 <div class="about-card">
-                    <h3>🏥 Project Overview</h3>
-                    <p>MedQA-Hindi is an AI-powered medical question-answering system fine-tuned for Hindi and English medical queries. It addresses the limitation of general-purpose LLMs in medical domains through parameter-efficient fine-tuning.</p>
+                    <h3>Project Overview</h3>
+                    <p>MedQA-Hindi is a model comparison and fine-tuning study for medical Q&amp;A. It benchmarks a base Qwen model against QLoRA and DPO variants, tracking quality, alignment, and language control across Hindi and English.</p>
                 </div>
 
                 <div class="about-card">
-                    <h3>⚙️ Technology Stack</h3>
+                    <h3>Technology Stack</h3>
                     <ul>
-                        <li><strong>Base Model:</strong> Qwen/Qwen2.5-1.5B-Instruct</li>
+                        <li><strong>Base Model:</strong> Qwen/Qwen2.5-0.5B-Instruct</li>
                         <li><strong>Fine-tuning:</strong> QLoRA (4-bit NF4 + LoRA adapters)</li>
                         <li><strong>Alignment:</strong> DPO (Direct Preference Optimization)</li>
                         <li><strong>Translation:</strong> IndicTrans2 (English→Hindi)</li>
@@ -223,18 +222,12 @@
                 </div>
 
                 <div class="about-card">
-                    <h3>📚 Datasets</h3>
+                    <h3>Datasets</h3>
                     <ul>
                         <li><strong>MedQuAD:</strong> 47K English medical QA pairs</li>
                         <li><strong>MedMCQA-Indic:</strong> Hindi medical MCQs</li>
                         <li><strong>HiMed:</strong> Hindi medical conversations</li>
                     </ul>
-                </div>
-
-                <div class="about-card warning">
-                    <h3>⚠️ Medical Disclaimer</h3>
-                    <p>This system is for <strong>educational purposes only</strong>. It is not a substitute for professional medical advice, diagnosis, or treatment. Always seek the advice of your physician or other qualified health provider with any questions you may have regarding a medical condition.</p>
-                    <p><strong>यह जानकारी केवल शैक्षिक उद्देश्यों के लिए है।</strong> यह पेशेवर चिकित्सा सलाह का विकल्प नहीं है। किसी भी स्वास्थ्य संबंधी निर्णय से पहले अपने चिकित्सक से परामर्श करें।</p>
                 </div>
             </div>
         </section>

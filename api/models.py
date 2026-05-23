@@ -83,6 +83,10 @@ class CompareRequest(BaseModel):
         default=[ModelType.BASE, ModelType.DPO],
         description="List of models to compare"
     )
+    language: Language = Field(
+        default=Language.AUTO,
+        description="Response language (auto-detects if not specified)"
+    )
     max_tokens: int = Field(default=512, ge=50, le=2048)
     temperature: float = Field(default=0.7, ge=0.1, le=1.5)
 
@@ -117,6 +121,10 @@ class MetricsResponse(BaseModel):
     metrics: List[MetricsData] = Field(..., description="All evaluation metrics")
     last_updated: str = Field(..., description="Last evaluation timestamp")
     num_test_samples: int = Field(..., description="Number of test samples used")
+    sample_predictions: Optional[List[Dict[str, Any]]] = Field(
+        default=None,
+        description="Sample predictions grouped by model"
+    )
 
 
 class HealthResponse(BaseModel):

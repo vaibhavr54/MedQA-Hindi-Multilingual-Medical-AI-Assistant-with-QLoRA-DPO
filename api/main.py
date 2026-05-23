@@ -132,7 +132,8 @@ async def compare(request: CompareRequest):
             question=request.question,
             models=model_types,
             max_tokens=request.max_tokens,
-            temperature=request.temperature
+            temperature=request.temperature,
+            language=request.language.value
         )
         comparisons = [
             ModelComparison(
@@ -152,7 +153,7 @@ async def compare(request: CompareRequest):
         raise HTTPException(status_code=500, detail=f"Comparison error: {e}")
 
 
-@app.get("/api/metrics", response_model=MetricsResponse)
+@app.get("/api/metrics")
 async def metrics():
     """Return evaluation metrics for all model variants."""
     # Default placeholder values shown before evaluate.py has been run
@@ -204,13 +205,24 @@ async def metrics():
             for key, display in zip(metric_keys, display_names)
         ]
 
-        return MetricsResponse(
-            metrics=metrics_data,
-            last_updated=datetime.fromtimestamp(
+        sample_predictions = [
+            {
+                "model_key": r.get("model_key"),
+                "model": r.get("model"),
+                "predictions": r.get("predictions", []),
+                "references": r.get("references", [])
+            }
+            for r in results
+        ]
+
+        return {
+            "metrics": metrics_data,
+            "last_updated": datetime.fromtimestamp(
                 EVAL_RESULTS.stat().st_mtime
             ).isoformat(),
-            num_test_samples=base.get("num_samples", 0)
-        )
+            "num_test_samples": base.get("num_samples", 0),
+            "sample_predictions": sample_predictions
+        }
 
     except HTTPException:
         raise
