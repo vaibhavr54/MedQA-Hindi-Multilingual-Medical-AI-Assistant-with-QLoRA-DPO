@@ -377,6 +377,11 @@ function appendLogLine(line) {
 
     const span = document.createElement('span');
     span.className = 'logs-line';
+    if (line.includes('✅')) span.classList.add('log-success');
+    else if (line.includes('❌')) span.classList.add('log-error');
+    else if (line.includes('⚠️')) span.classList.add('log-warning');
+    else if (line.includes('📥') || line.includes('ℹ️') || line.includes('🗑️')) span.classList.add('log-info');
+    
     span.textContent = line;
     logsBody.appendChild(span);
     logsBody.scrollTop = logsBody.scrollHeight;

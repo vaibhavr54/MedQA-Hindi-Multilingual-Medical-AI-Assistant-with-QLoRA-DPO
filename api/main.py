@@ -17,7 +17,7 @@ import json
 import torch
 import asyncio
 from pathlib import Path
-from datetime import datetime
+from datetime import datetime, timezone, timedelta
 from contextlib import asynccontextmanager
 from typing import List
 
@@ -51,7 +51,8 @@ _LOG_BUFFER_MAX = 200
 def _push_log(message: str):
     if not message:
         return
-    timestamp = datetime.now().strftime("%H:%M:%S")
+    ist = timezone(timedelta(hours=5, minutes=30))
+    timestamp = datetime.now(ist).strftime("%H:%M:%S")
     _log_buffer.append(f"{timestamp} {message}")
     if len(_log_buffer) > _LOG_BUFFER_MAX:
         del _log_buffer[: len(_log_buffer) - _LOG_BUFFER_MAX]

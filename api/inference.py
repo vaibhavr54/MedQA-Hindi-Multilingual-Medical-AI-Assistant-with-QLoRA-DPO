@@ -20,7 +20,7 @@ import torch
 import re
 from pathlib import Path
 from typing import Optional, Tuple, List, Dict
-from transformers import AutoModelForCausalLM, AutoTokenizer, BitsAndBytesConfig
+from transformers import AutoModelForCausalLM, AutoTokenizer, BitsAndBytesConfig, AutoConfig
 
 # ── Constants ──────────────────────────────────────────────────────────────────
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
@@ -133,14 +133,18 @@ class MedQAInference:
                 # CPU fallback — no quantization
                 print("   ⚠️  No GPU — loading in fp32 on CPU (slow but functional)")
                 self._emit_log("⚠️  CPU mode: full-precision load (no bitsandbytes)")
+                
+                # Strip quantization_config from config to avoid 'NoneType' object has no attribute 'to_dict' crash
+                config = AutoConfig.from_pretrained(path, trust_remote_code=True)
+                if hasattr(config, "quantization_config"):
+                    delattr(config, "quantization_config")
+
                 model = AutoModelForCausalLM.from_pretrained(
                     path,
+                    config=config,
                     device_map="cpu",
                     trust_remote_code=True,
-                    torch_dtype=torch.float32,
-                    quantization_config=None,
-                    load_in_4bit=False,
-                    load_in_8bit=False
+                    torch_dtype=torch.float32
                 )
             model.config.use_cache = False  # safe default; generation overrides this
 
