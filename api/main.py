@@ -101,7 +101,15 @@ app.add_middleware(
 # ── Routes ─────────────────────────────────────────────────────────────────────
 @app.get("/")
 async def root():
-    return RedirectResponse(url="/app")
+    frontend_dir = Path(__file__).parent.parent / "frontend"
+    if frontend_dir.exists():
+        return RedirectResponse(url="/app")
+    return {
+        "name": "MedQA-Hindi API",
+        "version": "1.0.0",
+        "docs": "/docs",
+        "health": "/api/health"
+    }
 
 
 @app.post("/api/ask", response_model=AskResponse)
