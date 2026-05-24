@@ -122,14 +122,25 @@ async def ask(request: AskRequest):
     """Ask a medical question; answered by the requested model variant."""
     try:
         _push_log(f"📥 Request /api/ask | model={request.model.value} | lang={request.language.value}")
-        answer, confidence, lang, processing_time = await asyncio.to_thread(
-            engine.generate,
-            question=request.question,
-            model_type=request.model.value,
-            max_tokens=request.max_tokens,
-            temperature=request.temperature,
-            language=request.language.value
-        )
+        try:
+            answer, confidence, lang, processing_time = await asyncio.to_thread(
+                engine.generate,
+                question=request.question,
+                model_type=request.model.value,
+                max_tokens=request.max_tokens,
+                temperature=request.temperature,
+                language=request.language.value,
+                allow_fallback=False
+            )
+        except RuntimeError as exc:
+            _push_log(f"⚠️  {request.model.value} unavailable: {exc}")
+            return AskResponse(
+                answer=f"Model unavailable. {exc}",
+                model_used=request.model.value,
+                confidence=0.0,
+                language=request.language.value,
+                processing_time_ms=0.0
+            )
         _push_log(f"✅ Completed /api/ask | model={request.model.value} | {round(processing_time, 2)}ms")
         return AskResponse(
             answer=answer,

@@ -256,7 +256,8 @@ class MedQAInference:
         model_type: str = "dpo",
         max_tokens: int = DEFAULT_MAX_TOKENS,
         temperature: float = DEFAULT_TEMPERATURE,
-        language: str = "auto"
+        language: str = "auto",
+        allow_fallback: bool = True
     ) -> Tuple[str, float, str, float]:
         """
         Generate an answer for `question` using `model_type`.
@@ -274,14 +275,14 @@ class MedQAInference:
         # Ensure the right model is loaded (swaps automatically if different)
         ok = self.load_model(model_type)
         if not ok:
-            if model_type != "base":
+            if model_type != "base" and allow_fallback:
                 print(f"   🔄 {model_type} unavailable — falling back to base")
+                self._emit_log(f"🔄 {model_type} unavailable — falling back to base")
                 model_type = "base"
                 ok = self.load_model("base")
             if not ok:
                 raise RuntimeError(
-                    "Could not load any model. "
-                    "Check that Qwen2.5-0.5B-Instruct is accessible."
+                    f"{model_type} failed to load."
                 )
 
         model     = self._model
@@ -369,7 +370,8 @@ class MedQAInference:
                     model_type=model_type,
                     max_tokens=max_tokens,
                     temperature=temperature,
-                    language=language
+                    language=language,
+                    allow_fallback=False
                 )
                 results.append({
                     "model":           model_type,
