@@ -25,9 +25,9 @@ from fastapi.responses import RedirectResponse
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
+
 from fastapi.staticfiles import StaticFiles
-from uvicorn.middleware.proxy_headers import ProxyHeadersMiddleware
-app.add_middleware(ProxyHeadersMiddleware, trusted_hosts="*")
+
 
 from api.models import (
     AskRequest, AskResponse,
@@ -100,6 +100,8 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+from uvicorn.middleware.proxy_headers import ProxyHeadersMiddleware
+app.add_middleware(ProxyHeadersMiddleware, trusted_hosts="*")
 
 # ── Routes ─────────────────────────────────────────────────────────────────────
 @app.get("/")
