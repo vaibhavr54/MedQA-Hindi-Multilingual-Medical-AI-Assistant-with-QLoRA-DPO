@@ -101,17 +101,7 @@ app.add_middleware(
 # ── Routes ─────────────────────────────────────────────────────────────────────
 @app.get("/")
 async def root():
-    return {
-        "name": "MedQA-Hindi API",
-        "version": "1.0.0",
-        "description": "AI-powered medical QA for Hindi/English",
-        "endpoints": {
-            "ask":     "POST /api/ask     — single model inference",
-            "compare": "POST /api/compare — side-by-side model comparison",
-            "metrics": "GET  /api/metrics — evaluation metrics dashboard",
-            "health":  "GET  /api/health  — system health check",
-        }
-    }
+    return RedirectResponse(url="/app")
 
 
 @app.post("/api/ask", response_model=AskResponse)
