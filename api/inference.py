@@ -121,13 +121,23 @@ class MedQAInference:
         print(f"📥 Loading {model_type} from {path} ...")
         self._emit_log(f"📥 Loading {model_type} from {path} ...")
         try:
-            model = AutoModelForCausalLM.from_pretrained(
-                path,
-                quantization_config=_bnb_config(),
-                device_map="auto",
-                trust_remote_code=True,
-                torch_dtype=torch.float16
-            )
+            if torch.cuda.is_available():
+                model = AutoModelForCausalLM.from_pretrained(
+                    path,
+                    quantization_config=_bnb_config(),
+                    device_map="auto",
+                    trust_remote_code=True,
+                    dtype=torch.float16
+                )
+            else:
+                # CPU fallback — no quantization
+                print(f"   ⚠️  No GPU — loading in fp32 on CPU (slow but functional)")
+                model = AutoModelForCausalLM.from_pretrained(
+                    path,
+                    device_map="cpu",
+                    trust_remote_code=True,
+                    torch_dtype=torch.float32
+                )
             model.config.use_cache = False  # safe default; generation overrides this
 
             tokenizer = AutoTokenizer.from_pretrained(path, trust_remote_code=True)
