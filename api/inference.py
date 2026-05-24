@@ -79,7 +79,7 @@ class MedQAInference:
         # }
         import os
 
-        _outputs = Path(__file__).parent.parent / "outputs"
+        _outputs = Path(__file__).parent.parent / "training" / "outputs"
         self._model_paths: Dict[str, str] = {
             "base":  BASE_MODEL_ID,
             "qlora": os.environ.get("QLORA_MODEL_PATH", str(_outputs / "qlora_rtx2050_full" / "final_merged")),
@@ -137,7 +137,10 @@ class MedQAInference:
                     path,
                     device_map="cpu",
                     trust_remote_code=True,
-                    torch_dtype=torch.float32
+                    torch_dtype=torch.float32,
+                    quantization_config=None,
+                    load_in_4bit=False,
+                    load_in_8bit=False
                 )
             model.config.use_cache = False  # safe default; generation overrides this
 
