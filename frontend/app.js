@@ -324,6 +324,10 @@ async function askCompare(question) {
 function formatAnswer(text) {
     if (!text) return '<div class="placeholder">No response generated.</div>';
 
+    if (text.startsWith('Model unavailable.')) {
+        return `<div class="placeholder">${escapeHtml(text)}</div>`;
+    }
+
     // Escape HTML
     let formatted = text
         .replace(/&/g, '&amp;')

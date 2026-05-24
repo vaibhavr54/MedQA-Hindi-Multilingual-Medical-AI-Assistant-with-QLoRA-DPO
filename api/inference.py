@@ -127,11 +127,12 @@ class MedQAInference:
                     quantization_config=_bnb_config(),
                     device_map="auto",
                     trust_remote_code=True,
-                    dtype=torch.float16
+                    torch_dtype=torch.float16
                 )
             else:
                 # CPU fallback — no quantization
                 print(f"   ⚠️  No GPU — loading in fp32 on CPU (slow but functional)")
+                self._emit_log("⚠️  CPU mode: 4-bit quantization disabled")
                 model = AutoModelForCausalLM.from_pretrained(
                     path,
                     device_map="cpu",
@@ -150,6 +151,8 @@ class MedQAInference:
             self._loaded_type = model_type
 
             print(f"   ✅ {model_type} loaded | VRAM: {self._vram_str()}")
+            if not torch.cuda.is_available() and model_type != "base":
+                self._emit_log(f"ℹ️  {model_type} loaded on CPU (slower)")
             self._emit_log(f"✅ {model_type} loaded | VRAM: {self._vram_str()}")
             return True
 
@@ -377,7 +380,7 @@ class MedQAInference:
             except Exception as exc:
                 results.append({
                     "model":           model_type,
-                    "answer":          f"Error: {exc}",
+                    "answer":          f"Model unavailable. {exc}",
                     "confidence":      0.0,
                     "response_time_ms": 0.0
                 })
