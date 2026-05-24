@@ -80,9 +80,15 @@ class MedQAInference:
         import os
 
         _outputs = Path(__file__).parent.parent / "training" / "outputs"
+        
+        # Default to final_merged_fp16 if no env variable is set, to ensure CPU compatibility
+        _default_qlora = str(_outputs / "qlora_rtx2050_full" / "final_merged_fp16")
+        if not Path(_default_qlora).exists():
+            _default_qlora = str(_outputs / "qlora_rtx2050_full" / "final_merged")
+
         self._model_paths: Dict[str, str] = {
             "base":  BASE_MODEL_ID,
-            "qlora": os.environ.get("QLORA_MODEL_PATH", str(_outputs / "qlora_rtx2050_full" / "final_merged")),
+            "qlora": os.environ.get("QLORA_MODEL_PATH", _default_qlora),
             "dpo":   os.environ.get("DPO_MODEL_PATH",   str(_outputs / "dpo" / "final_merged")),
         }
 
@@ -229,7 +235,7 @@ class MedQAInference:
             a second forward pass mid-session due to quantization state)
         """
         if self._model is None or self._tokenizer is None:
-            return 0.75
+            return 0.0
 
         try:
             full_text = prompt + response
@@ -240,7 +246,7 @@ class MedQAInference:
             seq_len    = full_ids.shape[1]
 
             if prompt_len >= seq_len:
-                return 0.75  # Response tokenized to nothing — edge case
+                return 0.0  # Response tokenized to nothing — edge case
 
             # Labels: -100 for prompt tokens (ignored in loss), real ids for response
             labels = full_ids.clone()
@@ -254,8 +260,9 @@ class MedQAInference:
             confidence = float(torch.exp(torch.tensor(-nll)).clamp(0.0, 1.0))
             return round(confidence, 3)
 
-        except Exception:
-            return 0.75
+        except Exception as e:
+            print(f"Confidence computation error: {e}")
+            return 0.0
 
     def generate(
         self,

@@ -65,7 +65,7 @@ class AskResponse(BaseModel):
     )
     language: str = Field(..., description="Detected response language")
     disclaimer: str = Field(
-        default="यह जानकारी केवल शैक्षिक उद्देश्यों के लिए है। यह पेशेवर चिकित्सा सलाह का विकल्प नहीं है।",
+        default="अस्वीकरण: यह जानकारी केवल शैक्षिक उद्देश्यों के लिए है और पेशेवर चिकित्सा सलाह का विकल्प नहीं है।",
         description="Medical disclaimer"
     )
     processing_time_ms: float = Field(..., description="Request processing time in milliseconds")
