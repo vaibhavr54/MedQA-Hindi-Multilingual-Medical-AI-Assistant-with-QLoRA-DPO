@@ -824,6 +824,7 @@ body {
     line-height: 1.5;
     color: #E3E9FF;
     white-space: pre-wrap;
+    background: linear-gradient(180deg, rgba(10, 15, 31, 0.92), rgba(6, 10, 22, 0.98));
 }
 
 .logs-empty {
@@ -833,6 +834,10 @@ body {
 .logs-line {
     display: block;
     margin-bottom: 6px;
+    padding: 6px 8px;
+    border-radius: 8px;
+    background: rgba(18, 26, 46, 0.65);
+    border: 1px solid rgba(255, 255, 255, 0.04);
 }
 
 .loading-overlay.hidden {

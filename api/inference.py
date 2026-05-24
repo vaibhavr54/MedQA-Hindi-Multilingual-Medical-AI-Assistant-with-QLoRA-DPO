@@ -131,16 +131,13 @@ class MedQAInference:
                 )
             else:
                 # CPU fallback — no quantization
-                print(f"   ⚠️  No GPU — loading in fp32 on CPU (slow but functional)")
-                self._emit_log("⚠️  CPU mode: forcing full-precision load (no bitsandbytes)")
+                print("   ⚠️  No GPU — loading in fp32 on CPU (slow but functional)")
+                self._emit_log("⚠️  CPU mode: full-precision load (no bitsandbytes)")
                 model = AutoModelForCausalLM.from_pretrained(
                     path,
                     device_map="cpu",
                     trust_remote_code=True,
-                    torch_dtype=torch.float32,
-                    quantization_config=None,
-                    load_in_4bit=False,
-                    load_in_8bit=False
+                    torch_dtype=torch.float32
                 )
             model.config.use_cache = False  # safe default; generation overrides this
 

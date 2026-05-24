@@ -51,7 +51,8 @@ _LOG_BUFFER_MAX = 200
 def _push_log(message: str):
     if not message:
         return
-    _log_buffer.append(message)
+    timestamp = datetime.now().strftime("%H:%M:%S")
+    _log_buffer.append(f"{timestamp} {message}")
     if len(_log_buffer) > _LOG_BUFFER_MAX:
         del _log_buffer[: len(_log_buffer) - _LOG_BUFFER_MAX]
 
