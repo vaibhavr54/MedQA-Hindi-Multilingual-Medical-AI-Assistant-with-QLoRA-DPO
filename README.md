@@ -1,112 +1,178 @@
----
-title: MedQA Hindi
-emoji: 🏥
-colorFrom: blue
-colorTo: green
-sdk: docker
-pinned: false
----
-
+## MedQA Hindi: Multilingual Medical AI Assistant with QLoRA + DPO
 
 ![CI](https://github.com/vaibhavr54/MedQA-Hindi-Multilingual-Medical-AI-Assistant-with-QLoRA-DPO/actions/workflows/ci.yml/badge.svg)
 
-BERTScore | 0.71 | 0.82 | 0.87 | ↑22% |
-| Medical Accuracy | 45% | 72% | 78% | ↑73% |
+MedQA Hindi is a multilingual medical QnA assistant trained with QLoRA finetuning and DPO alignment to improve factuality and safety for Hindi and English queries. It includes data preparation, training, evaluation, and a FastAPI inference service with a lightweight web UI.
 
-### Evaluation Methodology
+Disclaimer: This system is for educational purposes only. It is not a substitute for professional medical advice, diagnosis, or treatment.
 
-- **ROUGE-L**: Measures longest common subsequence between generated and reference answers
-- **BERTScore**: Semantic similarity using multilingual BERT embeddings
-- **Medical Accuracy**: Keyword overlap on medical entities (medications, symptoms, body parts, treatments)
+## Highlights
 
----
+- QLoRA finetuning for efficient multi-GPU and single-GPU training
+- DPO alignment for improved helpfulness and reduced unsafe responses
+- FastAPI inference service with health checks and model comparison
+- CI pipeline with API tests and evaluation metric tests
 
-## 📁 Project Structure
+## Architecture
+
+```mermaid
+flowchart LR
+  A[Raw medical QA datasets] --> B[Data preparation]
+  B --> C[Hindi translation]
+  C --> D[QLoRA finetuning]
+  D --> E[DPO alignment]
+  E --> F[Model artifacts]
+  F --> G[FastAPI inference]
+  G --> H[Web UI and API clients]
+  G --> I[Evaluation pipeline]
+```
+
+## Evaluation Summary
+
+| Metric | Base | QLoRA | DPO | Improvement (DPO) |
+|--------|------|-------|-----|------------------|
+| BERTScore | 0.71 | 0.82 | 0.87 | +22% |
+| Medical Accuracy | 0.45 | 0.72 | 0.78 | +73% |
+
+Evaluation methodology:
+
+- ROUGE-L: Longest common subsequence between generated and reference answers
+- BERTScore: Semantic similarity using multilingual BERT embeddings
+- Medical Accuracy: Keyword overlap on medications, symptoms, body parts, and treatments
+
+## Repository Structure
 
 ```
 medqa-hindi/
-├── data/
-│   ├── prepare_dataset.py      # Dataset download & formatting
-│   ├── translation.py          # IndicTrans2 EN→HI translation
-│   ├── create_dpo_pairs.py     # Self-play DPO pair generation
-│   └── processed/              # Generated datasets (gitignored)
-├── training/
-│   ├── qlora_finetune.py       # QLoRA training script
-│   ├── dpo_align.py            # DPO alignment script
-│   └── configs/
-│       ├── qlora.yaml          # QLoRA hyperparameters
-│       └── dpo.yaml            # DPO hyperparameters
-├── evaluation/
-│   ├── evaluate.py             # Metrics computation
-│   ├── compare_models.py       # Report generation
-│   └── results/                # Evaluation outputs (gitignored)
-├── api/
-│   ├── main.py                 # FastAPI application
-│   ├── inference.py            # Model loading & generation
-│   └── models.py               # Pydantic schemas
-├── frontend/
-│   ├── index.html              # Single-page application
-│   ├── styles.css              # Dark medical theme
-│   ├── app.js                  # Frontend logic
-│   └── charts.js               # Chart.js visualizations
+├── api/                    # FastAPI service and inference engine
+├── data/                   # Dataset preparation and translation scripts
+├── evaluation/             # Metrics and comparison tooling
+├── frontend/               # Single-page UI
+├── training/               # QLoRA and DPO training scripts + configs
+├── tests/                  # API and evaluation tests
+├── Dockerfile
+├── docker-compose.yml
 ├── requirements.txt
-└── README.md
+└── requirements-ci.txt
 ```
 
----
+## Quickstart
 
-## 💻 Hardware Requirements
+### Local development
 
-### Training (Kaggle T4)
+```bash
+python -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+uvicorn api.main:app --host 0.0.0.0 --port 8000
+```
 
-| Resource | Minimum | Recommended |
-|----------|---------|-------------|
-| GPU | NVIDIA T4 (16GB) | V100/A100 |
-| RAM | 16GB | 32GB |
-| Disk | 50GB | 100GB |
-| Time | ~5 hours total | ~3 hours |
+Open the API docs at `http://localhost:8000/docs`.
 
-### Inference
+### Docker
 
-| Resource | Requirement |
-|----------|-------------|
-| GPU | 4GB+ VRAM (T4 works) |
-| RAM | 8GB |
-| Disk | 10GB (models) |
+```bash
+docker build -t medqa-hindi .
+docker run --gpus all -p 7860:7860 medqa-hindi
+```
 
----
+The container uses `start.sh` to download model artifacts and serve the API on port 7860.
 
-## ⚠️ License & Disclaimer
+### Docker Compose
 
-### Medical Disclaimer
+```bash
+docker compose up --build
+```
 
-**This system is for educational purposes only.** It is not a substitute for professional medical advice, diagnosis, or treatment. Always seek the advice of your physician or other qualified health provider with any questions you may have regarding a medical condition.
+## API Overview
 
-**यह जानकारी केवल शैक्षिक उद्देश्यों के लिए है।** यह पेशेवर चिकित्सा सलाह का विकल्प नहीं है। किसी भी स्वास्थ्य संबंधी निर्णय से पहले अपने चिकित्सक से परामर्श करें।
+Base URL: `http://localhost:7860`
 
-### License
+- `GET /` - service metadata and endpoint list
+- `GET /api/health` - health status and model load states
+- `POST /api/ask` - ask a single question
+- `POST /api/compare` - compare responses across models
+- `GET /api/metrics` - evaluation summary
 
-MIT License - See [LICENSE](LICENSE) file for details.
+Example request:
 
-The model weights and datasets may have their own licenses:
-- **Qwen2.5**: Tongyi Qianwen License
-- **MedQuAD**: Public Domain
-- **MedMCQA**: Apache 2.0
-- **IndicTrans2**: MIT
+```bash
+curl -X POST http://localhost:7860/api/ask \
+  -H "Content-Type: application/json" \
+  -d '{"question": "बुखार के लिए क्या करें?", "model": "dpo"}'
+```
 
----
+## Training
 
-## 🙏 Acknowledgments
+### Data preparation
 
-- [Qwen Team](https://github.com/QwenLM/Qwen) for the base model
-- [HuggingFace](https://huggingface.co/) for datasets and transformers
-- [AI4Bharat](https://ai4bharat.iitm.ac.in/) for IndicTrans2
-- [Kaggle](https://www.kaggle.com/) for free GPU access
+```bash
+python data/prepare_dataset.py
+python data/translation.py
+python data/create_dpo_pairs.py
+```
 
----
+### QLoRA finetuning
 
-## 📬 Contact
+```bash
+python training/qlora_finetune.py --config training/configs/qlora.yaml
+```
 
-For questions or contributions, please open an issue on GitHub.
+### DPO alignment
 
-**Built with ❤️ for better healthcare AI in Indian languages.**
+```bash
+python training/dpo_align.py --config training/configs/dpo.yaml
+```
+
+## Evaluation
+
+```bash
+python evaluation/evaluate.py
+python evaluation/compare_models.py
+```
+
+## Hardware Requirements
+
+Training:
+
+- Minimum: NVIDIA T4 16GB, 16GB RAM, 50GB disk
+- Recommended: V100/A100, 32GB RAM, 100GB disk
+
+Inference:
+
+- Minimum: 4GB VRAM, 8GB RAM, 10GB disk
+
+## Production Considerations
+
+- Deployment: containerized runtime via `Dockerfile` with health checks
+- Observability: use reverse proxy metrics plus FastAPI logging
+- Model storage: set `QLORA_MODEL_ID` and `DPO_MODEL_ID` env vars for HF Hub downloads
+- Secrets: keep tokens out of the repo; supply `HUGGINGFACE_HUB_TOKEN` via env
+- Scaling: run multiple workers and place behind a load balancer
+- Safety: include medical disclaimer in UI and API responses
+
+## CI
+
+CI runs on every push to `main` and `dev` and on PRs into `main`.
+
+- Import checks for FastAPI schemas
+- API tests with mocked inference (GPU not required)
+- Evaluation metric tests
+
+## License
+
+MIT License. See `LICENSE` for details.
+
+Upstream licenses:
+
+- Qwen2.5: Tongyi Qianwen License
+- MedQuAD: Public Domain
+- MedMCQA: Apache 2.0
+- IndicTrans2: MIT
+
+## Acknowledgments
+
+- Qwen Team for the base model
+- Hugging Face for datasets and tooling
+- AI4Bharat for IndicTrans2
+- Kaggle for compute support
