@@ -109,13 +109,18 @@ app.add_middleware(ProxyHeadersMiddleware, trusted_hosts="*")
 @app.get("/")
 async def root():
     frontend_dir = Path(__file__).parent.parent / "frontend"
-    if frontend_dir.exists():
-        return RedirectResponse(url="/app")
     return {
         "name": "MedQA-Hindi API",
         "version": "1.0.0",
         "docs": "/docs",
-        "health": "/api/health"
+        "health": "/api/health",
+        "app": "/app" if frontend_dir.exists() else None,
+        "endpoints": {
+            "ask": "/api/ask",
+            "compare": "/api/compare",
+            "metrics": "/api/metrics",
+            "health": "/api/health"
+        }
     }
 
 
